@@ -1,7 +1,7 @@
-import data
-import train
 import configuration
 import models
+import train
+from num2num import data
 
 data_manager = data.ParityDataManager
 config = configuration.Config()

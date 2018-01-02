@@ -15,7 +15,7 @@ class MultiDataset(torch.utils.data.Dataset):
         return [
             data[index]
             for data in self.data_list
-            ]
+        ]
 
     def __len__(self):
         return self.data_length
@@ -36,6 +36,7 @@ class DataManager:
         return torch.utils.data.DataLoader(
             MultiDataset(data_x, data_y),
             batch_size=batch_size,
+            shuffle=True,
         )
 
     @classmethod
@@ -43,8 +44,10 @@ class DataManager:
         length = cls._get_length(config)
         if mode == "train":
             pass
-        elif mode == "Test":
-            length *= config.train_percentage
+        elif mode == "test":
+            length = int(config.test_percentage * length)
+        else:
+            raise KeyError(mode)
         data = cls.create_data(length=length)
         return cls._get_dataloader(data=data, batch_size=config.batch_size)
 
@@ -98,7 +101,7 @@ class LogicDataManager(DataManager):
             cls._resolve_logic(row_p_and_q[0], row_p_and_q[1], row_operations)
             for row_p_and_q, row_operations in zip(p_and_q, operations)
         ])
-        return logic_x, logic_y
+        return logic_x.astype(np.float32), logic_y.astype(np.float32)
 
     @classmethod
     def _get_length(cls, config):
