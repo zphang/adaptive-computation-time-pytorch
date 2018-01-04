@@ -7,11 +7,11 @@ import torch.optim as optim
 
 
 def train(config, model, data_manager):
-    train_data_loader = data_manager.create_dataloader(config)
-    test_data_loader = data_manager.create_dataloader(config, mode="test")
     optimizer = optim.Adam(model.parameters(), lr=config.learning_rate)
 
     for epoch in range(1, config.num_epochs + 1):
+        train_data_loader = data_manager.create_dataloader(config)
+        test_data_loader = data_manager.create_dataloader(config, mode="test")
         train_epoch(
             epoch=epoch, config=config, model=model,
             data_loader=train_data_loader,
@@ -73,15 +73,15 @@ def test_epoch(config, model, data_loader):
     ponder_times_ls = []
     for batch_idx, (x, y) in enumerate(data_loader):
         x_var = utils.maybe_cuda_var(x, cuda=config.cuda)
-        y_var = Variable(y, requires_grad=False)
+        y_var = Variable(y, volatile=True)
         if config.cuda:
             y_var = y_var.cuda()
 
         y_hat, ponder_dict = model(x_var, compute_ponder_cost=False)
-        # TODO: Add ponder_cost penalty
         test_loss += loss_func(y_hat, y_var).data[0]
         y_pred = (y_hat.data > 0.5).float()
-        correct += y_pred.eq(y_var.data).cpu().sum()
+        correct += y_pred.eq(y_var.data).cpu().numpy()\
+            .reshape(y.shape[0], -1).all(axis=1).sum()
 
         if ponder_dict:
             ponder_times_ls.append(np.array(ponder_dict["ponder_times"]).T)

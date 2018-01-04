@@ -30,7 +30,7 @@ class ParityRNNModel(nn.Module):
         self.fc1.reset_parameters()
 
     def forward(self, x, compute_ponder_cost=True):
-        rnn_out, hidden = self.rnn(x.unsqueeze(1))
+        rnn_out, hidden = self.rnn(x)
         return self.fc1(rnn_out).squeeze(1).squeeze(1), None
 
 
@@ -65,7 +65,7 @@ class ParityACTModel(nn.Module):
 
     def forward(self, x, compute_ponder_cost=True):
         rnn_out, hidden, ponder_cost = self.rnn(
-            input_=x.unsqueeze(1),
+            input_=x,
             compute_ponder_cost=compute_ponder_cost,
         )
         return self.fc1(rnn_out).squeeze(1).squeeze(1), ponder_cost
@@ -97,7 +97,7 @@ class LogicRNNModel(nn.Module):
         self.fc1.reset_parameters()
 
     def forward(self, x, compute_ponder_cost=True):
-        rnn_out, hidden = self.rnn(x.unsqueeze(1))
+        rnn_out, hidden = self.rnn(x)
         return self.fc1(rnn_out).squeeze(1).squeeze(1), None
 
 
@@ -132,7 +132,7 @@ class LogicACTModel(nn.Module):
 
     def forward(self, x, compute_ponder_cost=True):
         rnn_out, hidden, ponder_cost = self.rnn(
-            input_=x.unsqueeze(1),
+            input_=x,
             compute_ponder_cost=compute_ponder_cost,
         )
         return self.fc1(rnn_out).squeeze(1).squeeze(1), ponder_cost
@@ -206,30 +206,27 @@ class ACTFromCell(nn.Module):
 
         # Pre-allocate variables
         time_size, batch_size, input_dim_size = input_.size()
-        accum_h = Variable(input_.data.new(batch_size).zero_())
-        accum_hx = Variable(input_.data.new(
-            input_.size(1), self.rnn_cell.hidden_size
-        ).zero_())
-        if self._is_lstm:
-            accum_cx = Variable(input_.data.new(
-                input_.size(1), self.rnn_cell.hidden_size
-            ).zero_())
         selector = input_.data.new(batch_size).byte()
         hx_list, cx_list = [], []
-        step_count = Variable(input_.data.new(batch_size).zero_())
         ponder_cost = 0
         ponder_times = []
 
         # For each t
         for input_row in input_:
 
-            accum_h = accum_h.zero_()
-            accum_hx = accum_hx.zero_()
+            accum_h = Variable(input_.data.new(batch_size).zero_())
+            accum_hx = Variable(input_.data.new(
+                input_.size(1), self.rnn_cell.hidden_size
+            ).zero_())
+            if self._is_lstm:
+                accum_cx = Variable(input_.data.new(
+                    input_.size(1), self.rnn_cell.hidden_size
+                ).zero_())
             selector = selector.fill_(1)
 
             if self._is_lstm:
                 accum_cx = accum_cx.zero_()
-            step_count = step_count.zero_()
+            step_count = Variable(input_.data.new(batch_size).zero_())
             input_row_with_flag = torch.cat([
                 input_row,
                 Variable(input_row.data.new(batch_size, 1).zero_())
@@ -262,7 +259,7 @@ class ACTFromCell(nn.Module):
 
             ponder_times.append(step_count.data.cpu().numpy())
             if compute_ponder_cost:
-                ponder_cost -= step_ponder_cost
+                ponder_cost += step_ponder_cost
 
             hx = accum_hx / step_count.clone().unsqueeze(1)
             hx_list.append(hx)

@@ -61,7 +61,7 @@ class ParityDataManager(DataManager):
         for i in range(length):
             parity_x[i, zero_out[i]:] = 0.
         parity_y = (np.sum(parity_x == 1, axis=1) % 2).astype(np.float32)
-        return parity_x, parity_y
+        return np.expand_dims(parity_x, 1), parity_y
 
     @classmethod
     def _get_length(cls, config):
@@ -84,24 +84,37 @@ class LogicDataManager(DataManager):
 
     @classmethod
     def create_data(cls, length):
-        p_and_q = np.random.randint(2, size=(length, 2))
-        num_operations = np.random.randint(1, 11, size=length)
-        operations = [
-            np.random.randint(0, 10, size=b)
-            for b in num_operations
-        ]
-        one_hot_operations = np.zeros((length, 100))
+        p_and_q = np.random.randint(2, size=(length, 10, 2))
+        p_and_q[:, 1:, 1] = 0
 
-        for row_index, row_operations in enumerate(operations):
-            for op_index, row_operation in enumerate(row_operations):
-                one_hot_operations[row_index, op_index * 10 + row_operation] = 1
+        operations = np.random.randint(0, 10, size=(length, 10, 10))
+        num_operations = np.random.randint(1, 11, size=(length, 10))
+        for i in range(length):
+            for t in range(10):
+                operations[i, t, num_operations[i, t]:] = -1
+        one_hot_operations = np.zeros((length, 10, 100))
 
-        logic_x = np.hstack([p_and_q, one_hot_operations])
-        logic_y = np.array([
-            cls._resolve_logic(row_p_and_q[0], row_p_and_q[1], row_operations)
-            for row_p_and_q, row_operations in zip(p_and_q, operations)
-        ])
-        return logic_x.astype(np.float32), logic_y.astype(np.float32)
+        logic_y = np.empty(shape=(length, 10))
+        for row_index, (row_p_and_q, row_operations) in enumerate(
+                zip(p_and_q, operations)):
+            b_0 = row_p_and_q[0, 0]
+            for t in range(10):
+                for op_index, operation in enumerate(row_operations[t]):
+                    if operation == -1:
+                        break
+                    one_hot_operations[
+                        row_index, t, op_index * 10 + operation] = 1
+
+                result = cls._resolve_logic(b_0, row_p_and_q[t, 0],
+                                            row_operations[t])
+                logic_y[row_index, t] = result
+                b_0 = result
+
+        logic_x = np.concatenate([p_and_q, one_hot_operations], axis=2)
+        return (
+            logic_x.astype(np.float32),
+            np.expand_dims(logic_y.astype(np.float32), 2),
+        )
 
     @classmethod
     def _get_length(cls, config):
@@ -110,5 +123,7 @@ class LogicDataManager(DataManager):
     @classmethod
     def _resolve_logic(cls, p, q, op_list):
         for op in op_list:
+            if op == -1:
+                break
             p, q = q, cls.LOGIC_TABLE[op][p][q]
         return q
