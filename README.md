@@ -4,7 +4,7 @@ This is an implementation of [Adaptive Computation Time](https://arxiv.org/abs/1
 
 ### Introduction
 
-*Adaptive Computation Time* is a drop-in replacement for RNNs structures that allows the model to process multiple time steps on a single input token. More information can be found in the paper, or in this blog post:
+*Adaptive Computation Time* is a drop-in replacement for RNNs structures that allows the model to process multiple time steps on a single input token. More information can be found in the paper, or in this [blog post](http://jasonphang.com/adaptive-computation-time.html). 
 
 ### Requirements
 
